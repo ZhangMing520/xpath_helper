@@ -45,6 +45,10 @@ nodeCountEl.appendChild(nodeCountText);
 // Used by handleMouseMove() to enforce a cooldown period on relocate.
 var mostRecentRelocateTimeInMs = 0;
 
+// True while a divider is being dragged. Relocating then would move the bar out
+// from under the pointer mid-drag.
+var dragInProgress = false;
+
 var evaluateQuery = function() {
   var request = {
     'type': 'evaluate',
@@ -70,7 +74,7 @@ var handleRequest = function(request, sender, callback) {
 };
 
 var handleMouseMove = function(e) {
-  if (e.shiftKey) {
+  if (e.shiftKey && !dragInProgress) {
     // Only relocate if we aren't in the cooldown period. Note, the cooldown
     // duration should take CSS transition time into consideration.
     var timeInMs = new Date().getTime();
@@ -104,6 +108,7 @@ var addDragHandler = function(handleEl, onStart, onMove, onEnd) {
     }
 
     var state = onStart(e);
+    dragInProgress = true;
 
     var handleMove = function(ev) {
       if (ev.pointerId !== pointerId) {
@@ -122,6 +127,7 @@ var addDragHandler = function(handleEl, onStart, onMove, onEnd) {
       document.removeEventListener('pointermove', handleMove);
       document.removeEventListener('pointerup', handleUp);
       document.removeEventListener('pointercancel', handleUp);
+      dragInProgress = false;
       onEnd(state);
     };
 

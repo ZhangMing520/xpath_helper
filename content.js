@@ -232,9 +232,8 @@ xh.Bar.prototype.dispose = function() {
   this.hideBar_();
   document.removeEventListener('keydown', this.boundKeyDown_);
   chrome.runtime.onMessage.removeListener(this.boundHandleRequest_);
-  if (this.barFrame_.parentNode) {
-    document.body.removeChild(this.barFrame_);
-  }
+  // remove() tolerates a frame the page has already detached.
+  this.barFrame_.remove();
 };
 
 xh.Bar.prototype.toggleBar_ = function() {
@@ -260,9 +259,13 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
   if (request['type'] === 'height' && this.barHeightInPx_ === 0) {
     this.barHeightInPx_ = request['height'];
     // Now that we've saved the bar's height, remove it from the DOM and make it
-    // 'visible'.
-    document.body.removeChild(this.barFrame_);
+    // 'visible'. Reveal it *before* detaching, so a failure here cannot strand
+    // it hidden for the rest of the page's life. remove() is a no-op once the
+    // node is detached, unlike removeChild(), which throws NotFoundError if the
+    // page re-rendered <body> and dropped our iframe - a throw that rejects the
+    // sender's sendMessage with an opaque "listener couldn't be parsed" error.
     this.barFrame_.style.visibility = 'visible';
+    this.barFrame_.remove();
   } else if (request['type'] === 'resizeStart') {
     // Stretch the iframe over the viewport for the duration of a height drag;
     // bar.js explains why that is necessary. #xh-bar transitions its height
