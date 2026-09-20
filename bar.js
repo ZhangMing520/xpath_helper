@@ -64,6 +64,8 @@ var handleRequest = function(request, sender, callback) {
       resultsEl.value = request['results'][0];
       nodeCountText.nodeValue = request['results'][1];
     }
+  } else if (request['type'] === 'barPosition') {
+    document.body.classList.toggle('at-bottom', request['atBottom']);
   }
 };
 
@@ -159,19 +161,31 @@ addDragHandler(hsplitEl, function(e) {
     // bottom divider. Constant during the drag, so it caps how tall the boxes
     // may get: any taller and the bar would push its own divider off screen.
     chromeH: document.body.offsetHeight - startTextH,
-    // Once the stretch lands, innerHeight is the host viewport, so the cap can
-    // only be worked out afterwards (see onMove).
+    // The bar's own height until 'resizeStart' is applied (see onMove).
     preStretchH: window.innerHeight,
+    // Snapshot: the drag keeps its direction even if the bar relocates.
+    atBottom: document.body.classList.contains('at-bottom'),
     maxTextH: Infinity
   };
   chrome.runtime.sendMessage({'type': 'resizeStart'}).catch(function() {});
   return state;
 }, function(ev, state) {
   if (state.maxTextH === Infinity && window.innerHeight > state.preStretchH) {
+    var stretchDelta = window.innerHeight - state.preStretchH;
     state.maxTextH = window.innerHeight - state.chromeH;
+    if (state.atBottom) {
+      // Stretching a bottom-pinned bar lifts its iframe to the top of the host
+      // viewport, so clientY values jump by that much; shift the baseline
+      // captured before the stretch into the new coordinate space.
+      state.startY += stretchDelta;
+    }
   }
-  var textH = Math.min(state.startTextH + (ev.clientY - state.startY),
-                       state.maxTextH);
+  var dy = ev.clientY - state.startY;
+  if (state.atBottom) {
+    // Pinned to the bottom, the bar grows away from that edge, i.e. upwards.
+    dy = -dy;
+  }
+  var textH = Math.min(state.startTextH + dy, state.maxTextH);
   document.body.style.setProperty(
       '--text-h', Math.max(MIN_TEXT_H_PX, textH) + 'px');
 }, function() {

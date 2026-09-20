@@ -118,6 +118,24 @@ textarea {
   height: 9px;
 }
 
+/*
+ * A bottom-pinned bar grows upwards, so its height divider belongs on the top
+ * (free) edge, and the body has to stay anchored to the bottom while the iframe
+ * is stretched over the viewport during a drag.
+ */
+body.at-bottom {
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+body.at-bottom #hsplit {
+  order: -1;
+}
+
 #vsplit:hover,
 #hsplit:hover {
   background: #555;

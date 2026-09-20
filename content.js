@@ -293,6 +293,12 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
     // Move iframe to a different part of the screen.
     this.barFrame_.className = (
       this.barFrame_.className === 'top' ? 'bottom' : 'top');
+    // Keep the bar's idea of which edge it is pinned to in sync: it resizes
+    // away from that edge and puts its height divider on the free one.
+    chrome.runtime.sendMessage({
+      'type': 'barPosition',
+      'atBottom': this.barFrame_.className === 'bottom'
+    }).catch(function() {});
   } else if (request['type'] === 'toggleBar') {
     this.toggleBar_();
   }
