@@ -5,7 +5,7 @@ IMPORTANT: After installing this extension, you must reload any existing tabs (o
 Instructions:
 1. Open a new tab and navigate to your favorite webpage.
 2. Hit Ctrl-Shift-X to open the XPath Helper Reborn console.
-3. Hold down Shift as you mouse over elements on the page. The query box will continuously update to show the full XPath query for the element below the mouse pointer. The results box to its right will show the evaluated results for the query.
+3. Hold down Shift as you mouse over elements on the page. The query box will continuously update to show the full XPath query for the element below the mouse pointer. The results box to its right lists what the query matched, one row per result, each labelled with what it is (an element, a text node, an attribute...), so `//div` and `//div/text()` no longer look the same. Hover a row to outline that node on the page; the button beside the count switches the box to plain text when you want to copy every result at once.
 4. If desired, edit the XPath query directly in the console. The results box will immediately reflect any changes.
 5. Hit Ctrl-Shift-X again to close the console.
 

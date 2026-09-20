@@ -43,3 +43,13 @@
 img.xh-highlight {
   opacity: 0.5 !important;
 }
+
+/*
+ * The single result the bar's pointer is over, on top of the highlight that
+ * every match gets. An outline rather than a border: hover fires while typing,
+ * and a border would reflow the page each time.
+ */
+.xh-hover {
+  outline: 3px solid #ff4d4d !important;
+  outline-offset: 1px !important;
+}

@@ -65,7 +65,10 @@ xh.getElementIndex = function(el) {
   return 0;
 };
 
-xh.makeQueryForElement = function(el) {
+// Builds the XPath for an element. `step` is the trailing step that selects a
+// non-element node (see nodeStep); given one, the <img> convenience of ending at
+// /@src is skipped so the caller's step is the only one.
+xh.makeQueryForElement = function(el, step) {
   var query = '';
   for (; el && el.nodeType === Node.ELEMENT_NODE; el = el.parentNode) {
     var component = el.tagName.toLowerCase();
@@ -79,67 +82,229 @@ xh.makeQueryForElement = function(el) {
       component += '[' + index + ']';
     }
     // If the last tag is an img, the user probably wants img/@src.
-    if (query === '' && el.tagName.toLowerCase() === 'img') {
+    if (query === '' && !step && el.tagName.toLowerCase() === 'img') {
       component += '/@src';
     }
     query = '/' + component + query;
   }
-  return query;
+  return query + (step || '');
 };
 
 xh.highlightNodes = function(nodes) {
   for (var i = 0, l = nodes.length; i < l; i++) {
-    nodes[i].className += ' xh-highlight';
+    // An XPath can also select text nodes and attributes: they have no
+    // classList and nothing to paint, so skip them.
+    if (nodes[i].classList) {
+      nodes[i].classList.add('xh-highlight');
+    }
   }
 };
 
+// The one result the bar is pointing at, outlined separately from the
+// xh-highlight class that marks every match.
+xh.hoveredEl_ = null;
+xh.setHoverHighlight = function(el) {
+  if (xh.hoveredEl_) {
+    xh.hoveredEl_.classList.remove('xh-hover');
+  }
+  xh.hoveredEl_ = el;
+  if (xh.hoveredEl_) {
+    xh.hoveredEl_.classList.add('xh-hover');
+  }
+};
+
+// Takes off both marks this extension paints. They always come off together,
+// and always before evaluating: a query testing @class would otherwise stop
+// matching the elements we had marked.
 xh.clearHighlights = function() {
-  var els = document.getElementsByClassName('xh-highlight');
-  // Note: getElementsByClassName() returns a live NodeList.
-  while (els.length) {
-    els[0].className = els[0].className.replace(' xh-highlight', '');
+  // Static list, then mutate: clearing through the live HTMLCollection this
+  // used to use makes the engine re-collect on every write, which is quadratic
+  // - with 10k matches each keystroke cleared for ~2s and froze the page.
+  // classList also keeps working on SVG, whose className is not a string.
+  var els = document.querySelectorAll('.xh-highlight');
+  for (var i = 0, l = els.length; i < l; i++) {
+    els[i].classList.remove('xh-highlight');
+  }
+  xh.setHoverHighlight(null);
+};
+
+// The element to outline for a node the bar points at. Text, attribute and
+// comment nodes have no box of their own, so they fall back to the element
+// containing them.
+xh.outlineTarget = function(node) {
+  if (!node) {
+    return null;
+  }
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    return node;
+  }
+  if (node.nodeType === Node.ATTRIBUTE_NODE) {
+    return node.ownerElement;
+  }
+  if (node.nodeType === Node.DOCUMENT_NODE) {
+    return document.documentElement;
+  }
+  return node.parentElement;
+};
+
+// The extra step that selects a non-element node from the element containing
+// it, so a picked text()/attribute result keeps selecting that exact node
+// rather than its parent.
+xh.nodeStep = function(node) {
+  var kind = xh.nodeKind(node);
+  if (kind === 'text' || kind === 'cdata') {
+    return '/text()';
+  }
+  return kind === 'attribute' ? '/@' + node.nodeName : '';
+};
+
+// The kind of a node an XPath can select, as a short token that is both the key
+// of the per-kind tally and the thing the bar labels a result with.
+xh.nodeKind = function(node) {
+  switch (node.nodeType) {
+    case Node.ELEMENT_NODE:
+      return 'element';
+    case Node.ATTRIBUTE_NODE:
+      return 'attribute';
+    case Node.TEXT_NODE:
+      return 'text';
+    case Node.CDATA_SECTION_NODE:
+      return 'cdata';
+    case Node.COMMENT_NODE:
+      return 'comment';
+    case Node.DOCUMENT_NODE:
+      return 'document';
+    default:
+      return 'node';
   }
 };
 
-// Returns [values, nodeCount]. Highlights result nodes, if applicable. Assumes
-// no nodes are currently highlighted.
+// A results list is capped so that a query matching thousands of nodes cannot
+// build thousands of rows or a huge message; the plain text view still gets
+// every match.
+var MAX_RESULT_ROWS = 500;
+var MAX_ROW_TEXT = 300;
+
+// How each kind is spelled out in the results count. The plural is just an
+// appended 's', which reads correctly for every entry here.
+var KIND_LABELS = {
+  'element': 'element',
+  'attribute': 'attribute',
+  'text': 'text node',
+  'cdata': 'CDATA section',
+  'comment': 'comment',
+  'document': 'document',
+  'node': 'node',
+  'boolean': 'boolean',
+  'number': 'number',
+  'string': 'string'
+};
+
+// '24 elements' when every match is the same kind, or '24: 20 elements, 4 text
+// nodes' when it is mixed - worth saying at all because the text of `//x` and
+// `//x/text()` is identical. It lives here, next to the kind vocabulary, so the
+// bar does not have to keep its own copy of these names.
+var countLabel = function(count, counts) {
+  var kinds = [];
+  for (var kind in counts) {
+    if (counts.hasOwnProperty(kind)) {
+      var n = counts[kind];
+      kinds.push(n + ' ' + KIND_LABELS[kind] + (n === 1 ? '' : 's'));
+    }
+  }
+  if (kinds.length === 1) {
+    return kinds[0];
+  }
+  return kinds.length ? count + ': ' + kinds.join(', ') : String(count);
+};
+
+// A compact identity for one result, shown at the start of its row. Anything
+// that is not an element has no identity of its own to show.
+xh.describeNode = function(node) {
+  var kind = xh.nodeKind(node);
+  if (kind === 'element') {
+    var tag = node.tagName.toLowerCase();
+    if (node.id) {
+      return tag + '#' + node.id;
+    }
+    // getAttribute(), not className: on SVG elements className is not a string.
+    var className = node.getAttribute('class');
+    return className ? tag + '.' + className.trim().split(/\s+/).join('.') : tag;
+  }
+  return kind === 'attribute' ? '@' + node.nodeName : kind;
+};
+
+// Evaluates the query and highlights the nodes it matched. Returns
+// {str, count, label, rows, nodes, message}: `str` is the text of every match,
+// newline separated (the plain text view shows it verbatim), `label` names what
+// was matched by kind, `rows` describes the first MAX_RESULT_ROWS matches and
+// `nodes` mirrors it so the bar can ask for one of them to be outlined.
+// Assumes nothing is highlighted already.
 xh.evaluateQuery = function(query) {
   var xpathResult = null;
   var str = '';
   var nodeCount = 0;
+  var counts = {};
+  var rows = [];
+  var message = '';
   var nodesToHighlight = [];
+
+  // Tally every match, but describe only the first MAX_RESULT_ROWS of them.
+  var record = function(node, kind, text) {
+    counts[kind] = (counts[kind] || 0) + 1;
+    if (rows.length === MAX_RESULT_ROWS) {
+      return;
+    }
+    rows.push({
+      label: xh.describeNode(node),
+      text: text.length > MAX_ROW_TEXT ? text.slice(0, MAX_ROW_TEXT) : text
+    });
+  };
+
+  // Scalars match no node, so they get a row to show but nothing to outline.
+  var scalar = function(kind) {
+    counts[kind] = 1;
+    rows.push({label: kind, text: str});
+  };
 
   try {
     xpathResult = document.evaluate(query, document, null,
                                     XPathResult.ANY_TYPE, null);
   } catch (e) {
-    str = '[INVALID XPATH EXPRESSION]';
-    nodeCount = 0;
+    message = '[INVALID XPATH EXPRESSION]';
   }
 
   if (!xpathResult) {
-    return [str, nodeCount];
+    return {str: message, count: 0, label: countLabel(0, counts), rows: rows,
+            nodes: [], message: message};
   }
 
   if (xpathResult.resultType === XPathResult.BOOLEAN_TYPE) {
     str = xpathResult.booleanValue ? '1' : '0';
     nodeCount = 1;
+    scalar('boolean');
   } else if (xpathResult.resultType === XPathResult.NUMBER_TYPE) {
     str = xpathResult.numberValue.toString();
     nodeCount = 1;
+    scalar('number');
   } else if (xpathResult.resultType === XPathResult.STRING_TYPE) {
     str = xpathResult.stringValue;
     nodeCount = 1;
+    scalar('string');
   } else if (xpathResult.resultType ===
              XPathResult.UNORDERED_NODE_ITERATOR_TYPE) {
     for (var it = xpathResult.iterateNext(); it;
          it = xpathResult.iterateNext()) {
+      // Read the text once: it is not free for an element (it walks the subtree)
+      // and both the flat string and the row need it.
+      var text = it.textContent || '';
       nodesToHighlight.push(it);
       if (str) {
         str += '\n';
       }
-      str += it.textContent;
+      str += text;
       nodeCount++;
+      record(it, xh.nodeKind(it), text);
     }
     if (nodeCount === 0) {
       str = '';
@@ -147,12 +312,17 @@ xh.evaluateQuery = function(query) {
   } else {
     // Since we pass XPathResult.ANY_TYPE to document.evaluate(), we should
     // never get back a result type not handled above.
-    str = '[INTERNAL ERROR]';
-    nodeCount = 0;
+    message = '[INTERNAL ERROR]';
+    str = message;
   }
 
   xh.highlightNodes(nodesToHighlight);
-  return [str, nodeCount];
+  var label = countLabel(nodeCount, counts);
+  if (nodeCount > rows.length) {
+    label += ' — showing first ' + rows.length;
+  }
+  return {str: str, count: nodeCount, label: label, rows: rows,
+          nodes: nodesToHighlight.slice(0, rows.length), message: message};
 };
 
 
@@ -188,22 +358,33 @@ xh.Bar.prototype.barHeightInPx_ = 0;
 xh.Bar.prototype.currEl_ = null;
 xh.Bar.prototype.query_ = '';
 xh.Bar.prototype.showTimer_ = 0;
+xh.Bar.prototype.evalId_ = 0;
+xh.Bar.prototype.lastEvalNodes_ = null;
 xh.Bar.prototype.boundHandleRequest_ = null;
 xh.Bar.prototype.boundMouseMove_ = null;
 xh.Bar.prototype.boundKeyDown_ = null;
 
-xh.Bar.prototype.updateQueryAndBar_ = function(el) {
+xh.Bar.prototype.updateQueryAndBar_ = function(el, step) {
   xh.clearHighlights();
-  this.query_ = el ? xh.makeQueryForElement(el) : '';
+  this.query_ = el ? xh.makeQueryForElement(el, step) : '';
   this.updateBar_(true);
 };
 
 xh.Bar.prototype.updateBar_ = function(update_query) {
-  var results = this.query_ ? xh.evaluateQuery(this.query_) : ['', 0];
+  var result = this.query_ ? xh.evaluateQuery(this.query_) :
+      {str: '', count: 0, label: '0', rows: [], nodes: [], message: ''};
+  // `nodes` stays here: a Node cannot be sent through sendMessage.
+  this.lastEvalNodes_ = result.nodes;
+  this.evalId_++;
   var request = {
     'type': 'update',
     'query': update_query ? this.query_ : null,
-    'results': results
+    'evalId': this.evalId_,
+    'str': result.str,
+    'count': result.count,
+    'label': result.label,
+    'rows': result.rows,
+    'message': result.message
   };
   chrome.runtime.sendMessage(request);
 };
@@ -219,6 +400,9 @@ xh.Bar.prototype.hideBar_ = function() {
   // keyDown_() because hideBar_() could be called via handleRequest_().
   this.active_ = false;
   xh.clearHighlights();
+  // Nothing can be hovered or picked while hidden, so do not keep up to
+  // MAX_RESULT_ROWS page nodes pinned.
+  this.lastEvalNodes_ = null;
   document.removeEventListener('mousemove', this.boundMouseMove_);
   this.barFrame_.style.height = '0';
 };
@@ -252,6 +436,16 @@ xh.Bar.prototype.toggleBar_ = function() {
     // top document keeps receiving key events.
     window.focus();
   }
+};
+
+// The node a message from the bar refers to, or null when it names an
+// evaluation we have already replaced, or the bar has been hidden since.
+xh.Bar.prototype.requestedNode_ = function(request) {
+  if (!this.lastEvalNodes_ || request['evalId'] !== this.evalId_) {
+    return null;
+  }
+  var index = request['index'];
+  return index == null ? null : (this.lastEvalNodes_[index] || null);
 };
 
 xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
@@ -293,6 +487,16 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
     xh.clearHighlights();
     this.query_ = request['query'];
     this.updateBar_(false);
+  } else if (request['type'] === 'hoverResult') {
+    xh.setHoverHighlight(xh.outlineTarget(this.requestedNode_(request)));
+  } else if (request['type'] === 'pickResult') {
+    // The user picked a result: make its node the query, which is exactly what
+    // shift-hovering that node does.
+    var node = this.requestedNode_(request);
+    var picked = xh.outlineTarget(node);
+    if (picked) {
+      this.updateQueryAndBar_(picked, xh.nodeStep(node));
+    }
   } else if (request['type'] === 'relocateBar') {
     // Move iframe to a different part of the screen.
     this.barFrame_.className = (

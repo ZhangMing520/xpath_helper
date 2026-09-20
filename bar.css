@@ -141,10 +141,39 @@ body.at-bottom #hsplit {
   background: #555;
 }
 
+/* Centred, not baseline-aligned: a baseline-aligned button adds its own descent
+   to the line box and grows the header by a pixel. */
 .box-name {
+  align-items: center;
+  display: flex;
   font-size: 14px;
   font-weight: bold;
+  gap: 8px;
   padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+/* Truncate the label first so #mode-toggle can never be pushed out. */
+#results-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-toggle {
+  background: #333;
+  border: 1px solid #666;
+  color: #bada55;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 6px;
+}
+
+.mode-toggle:hover {
+  background: #444;
 }
 
 #query {
@@ -152,7 +181,75 @@ body.at-bottom #hsplit {
   width: 100%;
 }
 
-#results {
+/* The list and the plain text view share this pane, one at a time. */
+#results-pane {
   height: var(--text-h, 160px);
+}
+
+#results {
+  height: 100%;
   width: 100%;
+}
+
+#results-list {
+  background: #222;
+  border: 1px solid #666;
+  box-sizing: border-box;
+  color: #fff;
+  font-family: courier;
+  font-size: 14px;
+  height: 100%;
+  list-style: none;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0;
+  width: 100%;
+}
+
+/* Required: the textarea rule above sets display:block, which would otherwise
+   beat the user-agent [hidden] rule and show both views at once. */
+#results[hidden],
+#results-list[hidden] {
+  display: none;
+}
+
+.result-row {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.result-row:hover {
+  background: #2a2a2a;
+}
+
+/* min-width:0 is what lets the ellipsis kick in, and keeps long text from
+   forcing the boxes wider than the --query-w drag asked for. */
+.row-label {
+  color: #7fbf3f;
+  flex: 0 0 auto;
+  max-width: 45%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-note,
+.result-more {
+  color: #999;
+  font-style: italic;
+  padding: 0 4px;
+  white-space: nowrap;
 }

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
     <title></title>
     <link rel="stylesheet" type="text/css" href="bar.css">
   </head>
@@ -12,8 +13,14 @@
       </div>
       <div id="vsplit" title="Drag to resize"></div>
       <div id="results-box">
-        <div class="box-name">Results (<span id="node-count"></span>):</div>
-        <textarea id="results" readonly="readonly"></textarea>
+        <div class="box-name">
+          <span id="results-title">Results (<span id="node-count"></span>):</span>
+          <button type="button" id="mode-toggle" class="mode-toggle"></button>
+        </div>
+        <div id="results-pane">
+          <ul id="results-list"></ul>
+          <textarea id="results" readonly="readonly"></textarea>
+        </div>
       </div>
     </div>
     <div id="hsplit" title="Drag to resize height"></div>

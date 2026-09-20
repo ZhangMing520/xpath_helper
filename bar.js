@@ -38,6 +38,8 @@ var rowEl = document.getElementById('row');
 var queryBoxEl = document.getElementById('query-box');
 var vsplitEl = document.getElementById('vsplit');
 var hsplitEl = document.getElementById('hsplit');
+var resultsListEl = document.getElementById('results-list');
+var modeToggleEl = document.getElementById('mode-toggle');
 
 var nodeCountText = document.createTextNode('0');
 nodeCountEl.appendChild(nodeCountText);
@@ -57,6 +59,121 @@ var evaluateQuery = function() {
   chrome.runtime.sendMessage(request);
 };
 
+// Which view the results box shows. Kept in the iframe's own storage so it
+// survives page navigations and the bar iframe being re-created; the content
+// script never needs to know, so the update message always carries both forms.
+var RESULTS_MODE_KEY = 'xh-results-mode';
+var resultsMode =
+    localStorage.getItem(RESULTS_MODE_KEY) === 'text' ? 'text' : 'list';
+
+// The last update: its rows (kept so the list can be built lazily - there is no
+// point assembling 500 rows per keystroke while the text view is showing), the
+// evaluation they came from, and which row the pointer is over.
+var lastRows = null;
+var lastEvalId = null;
+var hoveredIndex = null;
+
+var noteRow = function(className, text) {
+  var li = document.createElement('li');
+  li.className = className;
+  li.textContent = text;
+  return li;
+};
+
+var renderRows = function(rows, count, message) {
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < rows.length; i++) {
+    var li = document.createElement('li');
+    li.className = 'result-row';
+    li.title = rows[i].label + ' — ' + rows[i].text;
+
+    var label = document.createElement('span');
+    label.className = 'row-label';
+    label.textContent = rows[i].label;
+
+    var text = document.createElement('span');
+    text.className = 'row-text';
+    text.textContent = rows[i].text;
+
+    li.appendChild(label);
+    li.appendChild(text);
+    frag.appendChild(li);
+  }
+  if (message) {
+    frag.appendChild(noteRow('result-note', message));
+  }
+  if (count > rows.length) {
+    frag.appendChild(noteRow('result-more', (count - rows.length) +
+        ' more not shown — switch to the text view for all of them'));
+  }
+  resultsListEl.replaceChildren(frag);
+};
+
+var renderLastRows = function() {
+  if (lastRows && resultsMode === 'list') {
+    renderRows(lastRows.rows, lastRows.count, lastRows.message);
+  }
+};
+
+// Ask the content script to outline whichever result the pointer is over.
+var sendHover = function() {
+  chrome.runtime.sendMessage({
+    'type': 'hoverResult',
+    'evalId': lastEvalId,
+    'index': hoveredIndex
+  }).catch(function() {});
+};
+
+// The pointer moved onto a row, or off the list entirely (null).
+var setHoveredIndex = function(index) {
+  if (index === hoveredIndex) {
+    return;
+  }
+  hoveredIndex = index;
+  sendHover();
+};
+
+// A re-render can drop the row the pointer was on, leaving its index dangling.
+// Only a surviving hover needs re-sending: evaluating clears the outline.
+var syncHoverAfterRender = function() {
+  if (hoveredIndex != null && hoveredIndex >= lastRows.rows.length) {
+    hoveredIndex = null;
+  }
+  if (hoveredIndex != null) {
+    sendHover();
+  }
+};
+
+// The result index of the row an event landed in, or null outside any row.
+// Rows are appended in order, so a row's position is its index.
+var rowIndexOf = function(e) {
+  var row = e.target.closest('.result-row');
+  return row ? Array.prototype.indexOf.call(resultsListEl.children, row) : null;
+};
+
+var applyMode = function() {
+  var listMode = resultsMode === 'list';
+  resultsListEl.hidden = !listMode;
+  resultsEl.hidden = listMode;
+  // The button names the view it switches to.
+  modeToggleEl.textContent = listMode ? 'text' : 'list';
+  modeToggleEl.title =
+      listMode ? 'Show results as plain text' : 'Show results as a list';
+};
+
+var toggleMode = function() {
+  resultsMode = resultsMode === 'list' ? 'text' : 'list';
+  localStorage.setItem(RESULTS_MODE_KEY, resultsMode);
+  applyMode();
+  if (resultsMode === 'list') {
+    // The rows were skipped while the text view was showing.
+    renderLastRows();
+  } else {
+    // The rows are gone from view, so the outline they were driving goes too.
+    setHoveredIndex(null);
+  }
+};
+
 var handleRequest = function(request, sender, callback) {
   // Note: Setting textarea's value and text node's nodeValue is XSS-safe.
   // Loose != null so an absent (undefined) field is skipped, not rendered.
@@ -64,9 +181,17 @@ var handleRequest = function(request, sender, callback) {
     if (request['query'] != null) {
       queryEl.value = request['query'];
     }
-    if (request['results'] != null) {
-      resultsEl.value = request['results'][0];
-      nodeCountText.nodeValue = request['results'][1];
+    if (request['str'] != null) {
+      lastEvalId = request['evalId'];
+      resultsEl.value = request['str'];
+      nodeCountText.nodeValue = request['label'];
+      lastRows = {
+        'rows': request['rows'] || [],
+        'count': request['count'],
+        'message': request['message'] || ''
+      };
+      renderLastRows();
+      syncHoverAfterRender();
     }
   } else if (request['type'] === 'barPosition') {
     document.body.classList.toggle('at-bottom', request['atBottom']);
@@ -90,6 +215,54 @@ var handleMouseMove = function(e) {
 
 queryEl.addEventListener('keyup', evaluateQuery);
 queryEl.addEventListener('mouseup', evaluateQuery);
+
+modeToggleEl.addEventListener('click', toggleMode);
+// Keep the caret in the query box rather than moving focus to the button.
+modeToggleEl.addEventListener('mousedown', function(e) { e.preventDefault(); });
+applyMode();
+
+// Delegated, so it keeps working across the list being re-rendered: hovering a
+// row (or its label or text) outlines that one result on the page.
+resultsListEl.addEventListener('mouseover', function(e) {
+  setHoveredIndex(rowIndexOf(e));
+});
+resultsListEl.addEventListener('mouseleave', function() {
+  setHoveredIndex(null);
+});
+// Leaving the iframe altogether does not fire mouseleave on the list.
+document.addEventListener('mouseout', function(e) {
+  if (!e.relatedTarget) {
+    setHoveredIndex(null);
+  }
+});
+
+// Double clicking a row makes that result the query, the same way shift-hovering
+// the node on the page does. The query box is filled by the content script's
+// update, which carries the XPath it built.
+resultsListEl.addEventListener('dblclick', function(e) {
+  var index = rowIndexOf(e);
+  if (index == null) {
+    return;
+  }
+  chrome.runtime.sendMessage({
+    'type': 'pickResult',
+    'evalId': lastEvalId,
+    'index': index
+  }).catch(function() {});
+});
+
+// Double clicking a line in the text view selects the whole line: that view is
+// line oriented, while a textarea's own double click only grabs one word. It
+// deliberately does not copy - nothing on screen would say that it had, and
+// anyone who wants it on the clipboard presses Ctrl+C anyway.
+resultsEl.addEventListener('dblclick', function(e) {
+  e.preventDefault();
+  var value = resultsEl.value;
+  var lineStart = value.lastIndexOf('\n', resultsEl.selectionStart - 1) + 1;
+  var nextBreak = value.indexOf('\n', resultsEl.selectionEnd);
+  var lineEnd = nextBreak === -1 ? value.length : nextBreak;
+  resultsEl.setSelectionRange(lineStart, lineEnd);
+});
 
 // Both dividers are dragged the same way: watch the document for the pointer
 // until it is released. onStart runs once as the drag begins and returns the
