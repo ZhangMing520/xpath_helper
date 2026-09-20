@@ -23,7 +23,6 @@
 
 // Constants.
 var RELOCATE_COOLDOWN_PERIOD_MS = 400;
-var X_KEYCODE = 88;
 
 // Global variables.
 var queryEl = document.getElementById('query');
@@ -41,16 +40,17 @@ var evaluateQuery = function() {
     'type': 'evaluate',
     'query': queryEl.value
   };
-  chrome.extension.sendMessage(request);
+  chrome.runtime.sendMessage(request);
 };
 
 var handleRequest = function(request, sender, callback) {
   // Note: Setting textarea's value and text node's nodeValue is XSS-safe.
+  // Loose != null so an absent (undefined) field is skipped, not rendered.
   if (request['type'] === 'update') {
-    if (request['query'] !== null) {
+    if (request['query'] != null) {
       queryEl.value = request['query'];
     }
-    if (request['results'] !== null) {
+    if (request['results'] != null) {
       resultsEl.value = request['results'][0];
       nodeCountText.nodeValue = request['results'][1];
     }
@@ -68,13 +68,13 @@ var handleMouseMove = function(e) {
     mostRecentRelocateTimeInMs = timeInMs;
 
     // Tell content script to move iframe to a different part of the screen.
-    chrome.extension.sendMessage({'type': 'relocateBar'});
+    chrome.runtime.sendMessage({'type': 'relocateBar'});
   }
 };
 
 var handleKeyDown = function(e) {
-  if (e.keyCode === X_KEYCODE && e.ctrlKey && e.shiftKey) {
-    chrome.extension.sendMessage({'type': 'hideBar'});
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyX') {
+    chrome.runtime.sendMessage({'type': 'hideBar'});
   }
 };
 
@@ -87,10 +87,10 @@ document.addEventListener('mousemove', handleMouseMove);
 // steal focus and hide bar.
 document.addEventListener('keydown', handleKeyDown);
 
-chrome.extension.onMessage.addListener(handleRequest);
+chrome.runtime.onMessage.addListener(handleRequest);
 
 var request = {
   'type': 'height',
   'height': document.documentElement.offsetHeight
 };
-chrome.extension.sendMessage(request);
+chrome.runtime.sendMessage(request);

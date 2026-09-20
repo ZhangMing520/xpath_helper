@@ -21,8 +21,15 @@
 
 'use strict';
 
-function handleRequest(request, sender, callback) {
-  // Simply relay the request. This lets content.js talk to bar.js.
-  chrome.tabs.sendMessage(sender.tab.id, request, callback);
-}
-chrome.extension.onMessage.addListener(handleRequest);
+// Relay messages between content.js and bar.js. The bar runs in an extension
+// iframe, so neither script can reach the other directly; forwarding through
+// the service worker delivers each message to every frame of the host tab
+// that has a listener (the content script and the bar iframe).
+chrome.runtime.onMessage.addListener((request, sender) => {
+  if (!sender.tab) {
+    return;
+  }
+  // No receiver is expected to respond; swallow "receiving end does not
+  // exist" errors while the tab is navigating away.
+  chrome.tabs.sendMessage(sender.tab.id, request).catch(() => {});
+});

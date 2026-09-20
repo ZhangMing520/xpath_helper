@@ -28,9 +28,6 @@ var xh = xh || {};
 ////////////////////////////////////////////////////////////////////////////////
 // Generic helper functions and constants
 
-xh.SHIFT_KEYCODE = 16;
-xh.X_KEYCODE = 88;
-
 xh.bind = function(object, method) {
   return function() {
     return method.apply(object, arguments);
@@ -168,10 +165,10 @@ xh.Bar = function() {
   this.boundMouseMove_ = xh.bind(this, this.mouseMove_);
   this.boundKeyDown_ = xh.bind(this, this.keyDown_);
 
-  chrome.extension.onMessage.addListener(this.boundHandleRequest_);
+  chrome.runtime.onMessage.addListener(this.boundHandleRequest_);
 
   this.barFrame_ = document.createElement('iframe');
-  this.barFrame_.src = chrome.extension.getURL('bar.html');
+  this.barFrame_.src = chrome.runtime.getURL('bar.html');
   this.barFrame_.id = 'xh-bar';
   this.barFrame_.className = 'top';
   this.barFrame_.style.height = '0';
@@ -190,6 +187,8 @@ xh.Bar.prototype.active_ = false;
 xh.Bar.prototype.barFrame_ = null;
 xh.Bar.prototype.barHeightInPx_ = 0;
 xh.Bar.prototype.currEl_ = null;
+xh.Bar.prototype.query_ = '';
+xh.Bar.prototype.showTimer_ = 0;
 xh.Bar.prototype.boundHandleRequest_ = null;
 xh.Bar.prototype.boundMouseMove_ = null;
 xh.Bar.prototype.boundKeyDown_ = null;
@@ -207,7 +206,7 @@ xh.Bar.prototype.updateBar_ = function(update_query) {
     'query': update_query ? this.query_ : null,
     'results': results
   };
-  chrome.extension.sendMessage(request);
+  chrome.runtime.sendMessage(request);
 };
 
 xh.Bar.prototype.showBar_ = function() {
@@ -223,6 +222,19 @@ xh.Bar.prototype.hideBar_ = function() {
   xh.clearHighlights();
   document.removeEventListener('mousemove', this.boundMouseMove_);
   this.barFrame_.style.height = '0';
+};
+
+xh.Bar.prototype.dispose = function() {
+  if (this.showTimer_) {
+    window.clearTimeout(this.showTimer_);
+    this.showTimer_ = 0;
+  }
+  this.hideBar_();
+  document.removeEventListener('keydown', this.boundKeyDown_);
+  chrome.runtime.onMessage.removeListener(this.boundHandleRequest_);
+  if (this.barFrame_.parentNode) {
+    document.body.removeChild(this.barFrame_);
+  }
 };
 
 xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
@@ -257,14 +269,14 @@ xh.Bar.prototype.mouseMove_ = function(e) {
 };
 
 xh.Bar.prototype.keyDown_ = function(e) {
-  if (e.keyCode === xh.X_KEYCODE && e.ctrlKey && e.shiftKey) {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyX') {
     if (!this.active_) {
       this.active_ = true;
       if (!this.barFrame_.parentNode) {
         // First bar request on this page. Add bar back to DOM.
         document.body.appendChild(this.barFrame_);
         // Use setTimeout so that the transition is visible.
-        window.setTimeout(this.boundShowBar_, 0);
+        this.showTimer_ = window.setTimeout(this.boundShowBar_, 0);
       } else {
         this.showBar_();
       }
@@ -277,7 +289,7 @@ xh.Bar.prototype.keyDown_ = function(e) {
   // Note that we rely on the mousemove handler to have updated this.currEl_.
   // Also, note that checking e.shiftKey wouldn't work here, since Shift is the
   // key that triggered this event.
-  if (this.active_ && e.keyCode === xh.SHIFT_KEYCODE && !e.ctrlKey) {
+  if (this.active_ && e.key === 'Shift' && !e.ctrlKey) {
     this.updateQueryAndBar_(this.currEl_);
   }
 };
@@ -286,6 +298,8 @@ xh.Bar.prototype.keyDown_ = function(e) {
 ////////////////////////////////////////////////////////////////////////////////
 // Initialization code
 
+// Content scripts can be re-injected on extension reload; replace any
+// previous instance (e.g. after an update) instead of stacking listeners.
 if (window['xhBarInstance']) {
   window['xhBarInstance'].dispose();
 }
