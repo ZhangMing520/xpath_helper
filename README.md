@@ -1,4 +1,4 @@
-# XPath Helper Improved
+# XPath Helper Reborn
 
 This is a fork from the Chrome extension XPath Helper, with some small
 modifications in the user interface.
