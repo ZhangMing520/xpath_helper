@@ -173,10 +173,9 @@ xh.Bar = function() {
   this.barFrame_.className = 'top';
   this.barFrame_.style.height = '0';
 
-  // Temporarily make bar 'hidden' and add it to the DOM. Once the bar's html
-  // has loaded, it will send us a message with its height, at which point we'll
-  // set this.barHeightInPx_, remove it from the DOM, and make it 'visible'.
-  // We'll add it back to the DOM on the first bar request.
+  // The iframe has to be in the DOM for its document to load and report its
+  // height back to us (see handleRequest_); until then it stays hidden and
+  // zero-sized.
   this.barFrame_.style.visibility = 'hidden';
   document.body.appendChild(this.barFrame_);
 
@@ -258,14 +257,16 @@ xh.Bar.prototype.toggleBar_ = function() {
 xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
   if (request['type'] === 'height' && this.barHeightInPx_ === 0) {
     this.barHeightInPx_ = request['height'];
-    // Now that we've saved the bar's height, remove it from the DOM and make it
-    // 'visible'. Reveal it *before* detaching, so a failure here cannot strand
-    // it hidden for the rest of the page's life. remove() is a no-op once the
-    // node is detached, unlike removeChild(), which throws NotFoundError if the
-    // page re-rendered <body> and dropped our iframe - a throw that rejects the
-    // sender's sendMessage with an opaque "listener couldn't be parsed" error.
     this.barFrame_.style.visibility = 'visible';
-    this.barFrame_.remove();
+    if (this.active_) {
+      // Toggled on before this height arrived, so size the bar the user is
+      // already waiting for rather than detaching it.
+      this.barFrame_.style.height = this.barHeightInPx_ + 'px';
+    } else {
+      // remove() is a no-op if the page already dropped the frame, where
+      // removeChild() would throw and reject the sender's sendMessage.
+      this.barFrame_.remove();
+    }
   } else if (request['type'] === 'resizeStart') {
     // Stretch the iframe over the viewport for the duration of a height drag;
     // bar.js explains why that is necessary. #xh-bar transitions its height
