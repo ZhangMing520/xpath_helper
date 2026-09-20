@@ -37,7 +37,7 @@ body {
   font-family: arial;
   margin: 0;
   overflow: hidden;
-  padding: 10px;
+  padding: 5px;
 }
 
 div {
@@ -99,7 +99,7 @@ textarea {
   border-left: 1px solid #555;
   border-right: 1px solid #555;
   cursor: col-resize;
-  flex: 0 0 9px;
+  flex: 0 0 5px;
 }
 
 /*
@@ -115,7 +115,7 @@ textarea {
   background: #111;
   border-top: 1px solid #555;
   cursor: row-resize;
-  height: 9px;
+  height: 5px;
 }
 
 /*
