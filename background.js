@@ -33,3 +33,16 @@ chrome.runtime.onMessage.addListener((request, sender) => {
   // exist" errors while the tab is navigating away.
   chrome.tabs.sendMessage(sender.tab.id, request).catch(() => {});
 });
+
+// Toolbar button and user-configurable keyboard shortcut both toggle the bar.
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id) {
+    chrome.tabs.sendMessage(tab.id, {type: 'toggleBar'}).catch(() => {});
+  }
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'toggle-bar' && tab && tab.id) {
+    chrome.tabs.sendMessage(tab.id, {type: 'toggleBar'}).catch(() => {});
+  }
+});

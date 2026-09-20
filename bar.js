@@ -72,20 +72,13 @@ var handleMouseMove = function(e) {
   }
 };
 
-var handleKeyDown = function(e) {
-  if (e.ctrlKey && e.shiftKey && e.code === 'KeyX') {
-    chrome.runtime.sendMessage({'type': 'hideBar'});
-  }
-};
-
 queryEl.addEventListener('keyup', evaluateQuery);
 queryEl.addEventListener('mouseup', evaluateQuery);
 
 // Add mousemove listener so we can detect Shift + mousemove inside iframe.
 document.addEventListener('mousemove', handleMouseMove);
-// Add keydown listener so we can detect Ctrl-Shift-X and tell content script to
-// steal focus and hide bar.
-document.addEventListener('keydown', handleKeyDown);
+// Ctrl-Shift-X toggling is a browser-level extension command (see manifest
+// "commands"), so bar.js does not need its own keydown handler.
 
 chrome.runtime.onMessage.addListener(handleRequest);
 

@@ -237,6 +237,25 @@ xh.Bar.prototype.dispose = function() {
   }
 };
 
+xh.Bar.prototype.toggleBar_ = function() {
+  if (!this.active_) {
+    this.active_ = true;
+    if (!this.barFrame_.parentNode) {
+      // First bar request on this page. Add bar back to DOM.
+      document.body.appendChild(this.barFrame_);
+      // Use setTimeout so that the transition is visible.
+      this.showTimer_ = window.setTimeout(this.boundShowBar_, 0);
+    } else {
+      this.showBar_();
+    }
+  } else {
+    this.hideBar_();
+    // Focus may sit inside the now-collapsed bar iframe; hand it back so the
+    // top document keeps receiving key events.
+    window.focus();
+  }
+};
+
 xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
   if (request['type'] === 'height' && this.barHeightInPx_ === 0) {
     this.barHeightInPx_ = request['height'];
@@ -252,9 +271,8 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
     // Move iframe to a different part of the screen.
     this.barFrame_.className = (
       this.barFrame_.className === 'top' ? 'bottom' : 'top');
-  } else if (request['type'] === 'hideBar') {
-    this.hideBar_();
-    window.focus();
+  } else if (request['type'] === 'toggleBar') {
+    this.toggleBar_();
   }
 };
 
@@ -269,26 +287,12 @@ xh.Bar.prototype.mouseMove_ = function(e) {
 };
 
 xh.Bar.prototype.keyDown_ = function(e) {
-  if (e.ctrlKey && e.shiftKey && e.code === 'KeyX') {
-    if (!this.active_) {
-      this.active_ = true;
-      if (!this.barFrame_.parentNode) {
-        // First bar request on this page. Add bar back to DOM.
-        document.body.appendChild(this.barFrame_);
-        // Use setTimeout so that the transition is visible.
-        this.showTimer_ = window.setTimeout(this.boundShowBar_, 0);
-      } else {
-        this.showBar_();
-      }
-    } else {
-      this.hideBar_();
-    }
-  }
-
   // If the user just pressed Shift and they're not holding Ctrl, update query.
   // Note that we rely on the mousemove handler to have updated this.currEl_.
   // Also, note that checking e.shiftKey wouldn't work here, since Shift is the
   // key that triggered this event.
+  // Toggling the bar itself is handled via chrome.commands / the toolbar
+  // button, so the shortcut stays user-reconfigurable.
   if (this.active_ && e.key === 'Shift' && !e.ctrlKey) {
     this.updateQueryAndBar_(this.currEl_);
   }

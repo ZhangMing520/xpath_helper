@@ -6,6 +6,21 @@
   "background": {
     "service_worker": "background.js"
   },
+  "action": {
+    "default_title": "Toggle XPath bar",
+    "default_icon": {
+      "32": "static/icon32.png",
+      "48": "static/icon48.png"
+    }
+  },
+  "commands": {
+    "toggle-bar": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X"
+      },
+      "description": "Show or hide the XPath bar"
+    }
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
