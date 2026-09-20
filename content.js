@@ -263,6 +263,28 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
     // 'visible'.
     document.body.removeChild(this.barFrame_);
     this.barFrame_.style.visibility = 'visible';
+  } else if (request['type'] === 'resizeStart') {
+    // Stretch the iframe over the viewport for the duration of a height drag;
+    // bar.js explains why that is necessary. #xh-bar transitions its height
+    // (see content.css), which would animate both the stretch and the
+    // snap-back on release into a visible slide, so switch the transition off
+    // for the drag. Inline !important is required because content.css sets it
+    // with !important.
+    this.barFrame_.style.setProperty('transition', 'none', 'important');
+    this.barFrame_.style.height = window.innerHeight + 'px';
+  } else if (request['type'] === 'resizeEnd') {
+    var height = request['height'];
+    if (height > 0) {
+      // Keep the bar inside the viewport, or its divider goes off screen.
+      this.barHeightInPx_ = Math.min(height, window.innerHeight);
+      this.barFrame_.style.height = this.barHeightInPx_ + 'px';
+    }
+    // Put the transition back once that height has been applied, so it cannot
+    // animate it; show/hide and relocate keep their animation.
+    var barFrame = this.barFrame_;
+    window.requestAnimationFrame(function() {
+      barFrame.style.removeProperty('transition');
+    });
   } else if (request['type'] === 'evaluate') {
     xh.clearHighlights();
     this.query_ = request['query'];

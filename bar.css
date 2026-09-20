@@ -19,6 +19,18 @@
  * @license Apache License, Version 2.0.
  */
 
+/*
+ * While the height divider is dragged the iframe is stretched over the whole
+ * viewport, so the bar's dark background must stop at the bar's own box and
+ * leave the rest transparent. <body>'s background would otherwise propagate to
+ * the canvas and paint that whole area: propagation happens only when the
+ * root's background-image is none *and* its background-color is transparent,
+ * so any image - even a transparent gradient - stops it.
+ */
+html {
+  background-image: linear-gradient(transparent, transparent);
+}
+
 body {
   background: #111;
   color: #bada55;
@@ -65,20 +77,50 @@ textarea {
 }
 
 #row {
+  display: flex;
   margin: 0;
   padding: 0;
   width: 100%;
 }
 
+/* --query-w is set by bar.js while the #vsplit divider is dragged. */
 #query-box {
-  float: left;
-  padding-right: 10px;
-  width: 60%;
+  flex: 0 0 var(--query-w, 40%);
+  min-width: 0;
 }
 
 #results-box {
-  float: left;
-  width: 40%;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+#vsplit {
+  background: #111;
+  border-left: 1px solid #555;
+  border-right: 1px solid #555;
+  cursor: col-resize;
+  flex: 0 0 9px;
+}
+
+/*
+ * The boxes paint their own background rather than relying on <body>'s
+ * reaching them (see the <html> rule above).
+ */
+#query-box,
+#results-box {
+  background: #111;
+}
+
+#hsplit {
+  background: #111;
+  border-top: 1px solid #555;
+  cursor: row-resize;
+  height: 9px;
+}
+
+#vsplit:hover,
+#hsplit:hover {
+  background: #555;
 }
 
 .box-name {
@@ -88,15 +130,11 @@ textarea {
 }
 
 #query {
-  height: 160px;
+  height: var(--text-h, 160px);
   width: 100%;
 }
 
 #results {
-  height: 160px;
+  height: var(--text-h, 160px);
   width: 100%;
-}
-
-#clear {
-  clear: both;
 }
