@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "XPath Helper Reborn",
   "version": "2026.9.20",
-  "description": "Extract, edit, and evaluate XPath queries with ease.",
+  "description": "Extract, edit, and evaluate XPath queries with ease. Press Ctrl+Shift+X to toggle the bar; hold Shift while hovering to inspect.",
   "background": {
     "service_worker": "background.js"
   },
