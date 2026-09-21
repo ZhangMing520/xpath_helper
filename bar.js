@@ -40,9 +40,23 @@ var vsplitEl = document.getElementById('vsplit');
 var hsplitEl = document.getElementById('hsplit');
 var resultsListEl = document.getElementById('results-list');
 var modeToggleEl = document.getElementById('mode-toggle');
+var queryNameEl = document.getElementById('query-name');
+var resultsTitleEl = document.getElementById('results-title');
 
 var nodeCountText = document.createTextNode('0');
 nodeCountEl.appendChild(nodeCountText);
+
+// The few bits of bar chrome that are plain text rather than data: the box
+// names, the count's bracket, and the divider tooltips. Pulled from the
+// locale pack (see _locales) so the bar is not English-only.
+queryNameEl.textContent = chrome.i18n.getMessage('queryLabel');
+resultsTitleEl.insertBefore(
+    document.createTextNode(chrome.i18n.getMessage('resultsPrefix')),
+    nodeCountEl);
+resultsTitleEl.appendChild(
+    document.createTextNode(chrome.i18n.getMessage('resultsSuffix')));
+vsplitEl.title = chrome.i18n.getMessage('resizeCol');
+hsplitEl.title = chrome.i18n.getMessage('resizeRow');
 
 // Used by handleMouseMove() to enforce a cooldown period on relocate.
 var mostRecentRelocateTimeInMs = 0;
@@ -103,8 +117,8 @@ var renderRows = function(rows, count, message) {
     frag.appendChild(noteRow('result-note', message));
   }
   if (count > rows.length) {
-    frag.appendChild(noteRow('result-more', (count - rows.length) +
-        ' more not shown — switch to the text view for all of them'));
+    frag.appendChild(noteRow('result-more',
+        chrome.i18n.getMessage('moreNotShown', String(count - rows.length))));
   }
   resultsListEl.replaceChildren(frag);
 };
@@ -156,9 +170,11 @@ var applyMode = function() {
   resultsListEl.hidden = !listMode;
   resultsEl.hidden = listMode;
   // The button names the view it switches to.
-  modeToggleEl.textContent = listMode ? 'text' : 'list';
-  modeToggleEl.title =
-      listMode ? 'Show results as plain text' : 'Show results as a list';
+  modeToggleEl.textContent = listMode
+      ? chrome.i18n.getMessage('modeText') : chrome.i18n.getMessage('modeList');
+  modeToggleEl.title = listMode
+      ? chrome.i18n.getMessage('modeTitleText')
+      : chrome.i18n.getMessage('modeTitleList');
 };
 
 var toggleMode = function() {

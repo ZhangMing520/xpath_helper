@@ -1,0 +1,96 @@
+{
+  "extName": {
+    "message": "XPath Helper Reborn"
+  },
+  "_locale": {
+    "message": "zh"
+  },
+  "extDescription": {
+    "message": "轻松提取、编辑和评估网页上的 XPath 查询。按 Ctrl+Shift+X 开关工具栏；按住 Shift 悬停以查看元素。"
+  },
+  "actionTitle": {
+    "message": "开关 XPath 工具栏"
+  },
+  "cmdToggleDesc": {
+    "message": "显示或隐藏 XPath 工具栏"
+  },
+  "queryLabel": {
+    "message": "查询："
+  },
+  "resultsPrefix": {
+    "message": "结果（"
+  },
+  "resultsSuffix": {
+    "message": "）："
+  },
+  "resizeCol": {
+    "message": "拖动以调整宽度"
+  },
+  "resizeRow": {
+    "message": "拖动以调整高度"
+  },
+  "modeText": {
+    "message": "文本"
+  },
+  "modeList": {
+    "message": "列表"
+  },
+  "modeTitleText": {
+    "message": "以纯文本显示结果"
+  },
+  "modeTitleList": {
+    "message": "以列表显示结果"
+  },
+  "moreNotShown": {
+    "message": "还有 $count$ 个未显示——切换到文本视图查看全部",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "showingFirst": {
+    "message": " — 仅显示前 $count$ 个",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "invalidXpath": {
+    "message": "[XPath 表达式无效]"
+  },
+  "internalError": {
+    "message": "[内部错误]"
+  },
+  "kind_element": {
+    "message": "元素"
+  },
+  "kind_attribute": {
+    "message": "属性"
+  },
+  "kind_text": {
+    "message": "文本节点"
+  },
+  "kind_cdata": {
+    "message": "CDATA 片段"
+  },
+  "kind_comment": {
+    "message": "注释"
+  },
+  "kind_document": {
+    "message": "文档"
+  },
+  "kind_node": {
+    "message": "节点"
+  },
+  "kind_boolean": {
+    "message": "布尔值"
+  },
+  "kind_number": {
+    "message": "数字"
+  },
+  "kind_string": {
+    "message": "字符串"
+  }
+}

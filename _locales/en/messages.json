@@ -1,0 +1,96 @@
+{
+  "extName": {
+    "message": "XPath Helper Reborn"
+  },
+  "_locale": {
+    "message": "en"
+  },
+  "extDescription": {
+    "message": "Extract, edit, and evaluate XPath queries with ease. Press Ctrl+Shift+X to toggle the bar; hold Shift while hovering to inspect."
+  },
+  "actionTitle": {
+    "message": "Toggle XPath bar"
+  },
+  "cmdToggleDesc": {
+    "message": "Show or hide the XPath bar"
+  },
+  "queryLabel": {
+    "message": "Query:"
+  },
+  "resultsPrefix": {
+    "message": "Results ("
+  },
+  "resultsSuffix": {
+    "message": "):"
+  },
+  "resizeCol": {
+    "message": "Drag to resize"
+  },
+  "resizeRow": {
+    "message": "Drag to resize height"
+  },
+  "modeText": {
+    "message": "text"
+  },
+  "modeList": {
+    "message": "list"
+  },
+  "modeTitleText": {
+    "message": "Show results as plain text"
+  },
+  "modeTitleList": {
+    "message": "Show results as a list"
+  },
+  "moreNotShown": {
+    "message": "$count$ more not shown — switch to the text view for all of them",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "showingFirst": {
+    "message": " — showing first $count$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "invalidXpath": {
+    "message": "[INVALID XPATH EXPRESSION]"
+  },
+  "internalError": {
+    "message": "[INTERNAL ERROR]"
+  },
+  "kind_element": {
+    "message": "element"
+  },
+  "kind_attribute": {
+    "message": "attribute"
+  },
+  "kind_text": {
+    "message": "text node"
+  },
+  "kind_cdata": {
+    "message": "CDATA section"
+  },
+  "kind_comment": {
+    "message": "comment"
+  },
+  "kind_document": {
+    "message": "document"
+  },
+  "kind_node": {
+    "message": "node"
+  },
+  "kind_boolean": {
+    "message": "boolean"
+  },
+  "kind_number": {
+    "message": "number"
+  },
+  "kind_string": {
+    "message": "string"
+  }
+}

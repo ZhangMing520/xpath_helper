@@ -8,13 +8,13 @@
   <body>
     <div id="row">
       <div id="query-box">
-        <div class="box-name">Query:</div>
+        <div class="box-name" id="query-name">Query:</div>
         <textarea id="query"></textarea>
       </div>
-      <div id="vsplit" title="Drag to resize"></div>
+      <div id="vsplit"></div>
       <div id="results-box">
         <div class="box-name">
-          <span id="results-title">Results (<span id="node-count"></span>):</span>
+          <span id="results-title"><span id="node-count"></span></span>
           <button type="button" id="mode-toggle" class="mode-toggle"></button>
         </div>
         <div id="results-pane">
@@ -23,7 +23,7 @@
         </div>
       </div>
     </div>
-    <div id="hsplit" title="Drag to resize height"></div>
+    <div id="hsplit"></div>
     <script type="text/javascript" src="bar.js"></script>
   </body>
 </html>

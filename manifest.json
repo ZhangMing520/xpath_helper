@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "XPath Helper Reborn",
+  "name": "__MSG_extName__",
   "version": "2026.9.20",
-  "description": "Extract, edit, and evaluate XPath queries with ease. Press Ctrl+Shift+X to toggle the bar; hold Shift while hovering to inspect.",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Toggle XPath bar",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "static/icon16.png",
       "19": "static/icon19.png",
@@ -20,7 +21,7 @@
       "suggested_key": {
         "default": "Ctrl+Shift+X"
       },
-      "description": "Show or hide the XPath bar"
+      "description": "__MSG_cmdToggleDesc__"
     }
   },
   "content_scripts": [

@@ -185,19 +185,24 @@ xh.nodeKind = function(node) {
 var MAX_RESULT_ROWS = 500;
 var MAX_ROW_TEXT = 300;
 
-// How each kind is spelled out in the results count. The plural is just an
-// appended 's', which reads correctly for every entry here.
-var KIND_LABELS = {
-  'element': 'element',
-  'attribute': 'attribute',
-  'text': 'text node',
-  'cdata': 'CDATA section',
-  'comment': 'comment',
-  'document': 'document',
-  'node': 'node',
-  'boolean': 'boolean',
-  'number': 'number',
-  'string': 'string'
+// How each kind is spelled out in the results. The bar labels a non-element
+// result with it and the count summary builds from it, so both sides share one
+// vocabulary. Loaded once from the locale pack (see _locales); the English
+// token is the fallback if a translation is missing.
+var KIND_LABELS = {};
+['element', 'attribute', 'text', 'cdata', 'comment', 'document', 'node',
+ 'boolean', 'number', 'string'].forEach(function(kind) {
+  KIND_LABELS[kind] = chrome.i18n.getMessage('kind_' + kind) || kind;
+});
+
+// Chinese has no plural and wraps the count in 个; English just adds an 's'.
+// Drive this off the locale that was actually resolved (a sentinel in the
+// message pack), not the browser UI locale - the two can diverge, and a
+// browser-language check would wrongly pluralize Chinese labels as "元素s".
+var isZh_ = chrome.i18n.getMessage('_locale') === 'zh';
+
+var kindPhrase = function(n, label) {
+  return isZh_ ? n + ' 个' + label : n + ' ' + label + (n === 1 ? '' : 's');
 };
 
 // '24 elements' when every match is the same kind, or '24: 20 elements, 4 text
@@ -205,17 +210,21 @@ var KIND_LABELS = {
 // `//x/text()` is identical. It lives here, next to the kind vocabulary, so the
 // bar does not have to keep its own copy of these names.
 var countLabel = function(count, counts) {
-  var kinds = [];
+  var entries = [];
   for (var kind in counts) {
     if (counts.hasOwnProperty(kind)) {
-      var n = counts[kind];
-      kinds.push(n + ' ' + KIND_LABELS[kind] + (n === 1 ? '' : 's'));
+      entries.push(kindPhrase(counts[kind], KIND_LABELS[kind]));
     }
   }
-  if (kinds.length === 1) {
-    return kinds[0];
+  if (entries.length === 1) {
+    return entries[0];
   }
-  return kinds.length ? count + ': ' + kinds.join(', ') : String(count);
+  if (entries.length === 0) {
+    return String(count);
+  }
+  return isZh_
+      ? '共 ' + count + ' 个：' + entries.join('，')
+      : count + ': ' + entries.join(', ');
 };
 
 // A compact identity for one result, shown at the start of its row. Anything
@@ -231,7 +240,7 @@ xh.describeNode = function(node) {
     var className = node.getAttribute('class');
     return className ? tag + '.' + className.trim().split(/\s+/).join('.') : tag;
   }
-  return kind === 'attribute' ? '@' + node.nodeName : kind;
+  return kind === 'attribute' ? '@' + node.nodeName : KIND_LABELS[kind];
 };
 
 // Evaluates the query and highlights the nodes it matched. Returns
@@ -264,14 +273,14 @@ xh.evaluateQuery = function(query) {
   // Scalars match no node, so they get a row to show but nothing to outline.
   var scalar = function(kind) {
     counts[kind] = 1;
-    rows.push({label: kind, text: str});
+    rows.push({label: KIND_LABELS[kind], text: str});
   };
 
   try {
     xpathResult = document.evaluate(query, document, null,
                                     XPathResult.ANY_TYPE, null);
   } catch (e) {
-    message = '[INVALID XPATH EXPRESSION]';
+    message = chrome.i18n.getMessage('invalidXpath');
   }
 
   if (!xpathResult) {
@@ -312,14 +321,14 @@ xh.evaluateQuery = function(query) {
   } else {
     // Since we pass XPathResult.ANY_TYPE to document.evaluate(), we should
     // never get back a result type not handled above.
-    message = '[INTERNAL ERROR]';
+    message = chrome.i18n.getMessage('internalError');
     str = message;
   }
 
   xh.highlightNodes(nodesToHighlight);
   var label = countLabel(nodeCount, counts);
   if (nodeCount > rows.length) {
-    label += ' — showing first ' + rows.length;
+    label += chrome.i18n.getMessage('showingFirst', String(rows.length));
   }
   return {str: str, count: nodeCount, label: label, rows: rows,
           nodes: nodesToHighlight.slice(0, rows.length), message: message};
